@@ -1,8 +1,8 @@
 /*************************************************************************
 **    > File Name: log_server.c
-**    > Author: liuxiang
-**    > Mail: lxiangb@ankki.com 
-**    > Created Time: 2018??04??28?? ?????? 09ʱ40??29??
+**    > Author: Ral
+**    > Mail:  
+**    > Created Time: 
 *************************************************************************/
 
 #include <sys/types.h>
