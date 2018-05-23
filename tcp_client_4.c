@@ -1,8 +1,8 @@
 /*************************************************************************
 **    > File Name: tcp_client_6.c
-**    > Author: liuxiang
-**    > Mail: lxiangb@ankki.com 
-**    > Created Time: 2018??05??18?? ?????? 10ʱ10??12??
+**    > Author: Ral
+**    > Mail: 
+**    > Created Time: test
 *************************************************************************/
 
 #include <stdio.h>
