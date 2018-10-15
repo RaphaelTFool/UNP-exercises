@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     }
     msg = (struct shm_msg *)shmptr;
 
-    if (msg->type == MAGIC_TOKEN)
+    if (msg->type != MAGIC_TOKEN)
     {
         DBG_PRINT("share message type wrong");
         goto cleanup;

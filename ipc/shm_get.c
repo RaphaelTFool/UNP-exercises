@@ -36,7 +36,6 @@ int main(int argc, char *argv[])
         DBG_PRINT("failed to create share memory");
         return ERR_ERROR;
     }
-    pause();
 
     return ERR_SUCCESS;
 }

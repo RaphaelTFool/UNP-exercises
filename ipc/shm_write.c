@@ -70,6 +70,7 @@ int main(int argc, char *argv[])
     DBG_PRINT("write finished");
 
     shm_detach(id);
+    free(msg);
 
     return ERR_SUCCESS;
 

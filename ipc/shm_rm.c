@@ -1,5 +1,5 @@
 /*************************************************************************
-	> File Name: shmget.c
+	> File Name: shm_rm.c
 	> Author: 
 	> Mail: 
 	> Created Time: Fri 12 Oct 2018 11:10:57 PM EDT
@@ -20,6 +20,7 @@
 int main(int argc, char *argv[])
 {
     int id;
+    int ret;
 
     if (2 != argc)
     {
@@ -28,16 +29,15 @@ int main(int argc, char *argv[])
     }
 
     id = shm_attach(argv[1]);
-    DBG_PRINT("id = (dec)%d, (hex)0x%08x", id, id);
     if (ERR_ERROR == id)
     {
-        DBG_PRINT("failed to create share memory");
+        DBG_PRINT("failed to get share memory base address");
         return ERR_ERROR;
     }
-
-    if (shm_destroy(id) < 0)
+    ret = shm_destroy(id);
+    if (ERR_ERROR == ret)
     {
-        DBG_PRINT("failed to destroy share memory");
+        DBG_PRINT("failed to release share memory");
         return ERR_ERROR;
     }
 

@@ -88,15 +88,23 @@ void *shm_get_base(int id)
 
 int shm_detach(int id)
 {
+    void *shm_base;
+
     if (id < 0)
     {
         DBG_PRINT("input para invalid");
         return ERR_ERROR;
     }
 
-    if (-1 == shmctl(id, IPC_RMID, NULL))
+    if (NULL == (shm_base = shm_get_base(id)))
     {
-        DBG_PRINT("shmctl error: %s", strerror(errno));
+        DBG_PRINT("failed to detach share memory");
+        return ERR_ERROR;
+    }
+
+    if (-1 == shmdt(shm_base))
+    {
+        DBG_PRINT("failed to detach: %s", strerror(errno));
         return ERR_ERROR;
     }
 
@@ -110,7 +118,14 @@ int shm_destroy(int id)
         DBG_PRINT("input para invalid");
         return ERR_ERROR;
     }
-    return shm_detach(id);
+
+    if (-1 == shmctl(id, IPC_RMID, NULL))
+    {
+        DBG_PRINT("shmctl error: %s", strerror(errno));
+        return ERR_ERROR;
+    }
+
+    return ERR_SUCCESS;
 }
 
 int shm_write(int id, void *data, int length)
