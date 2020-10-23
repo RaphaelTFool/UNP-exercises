@@ -5,20 +5,20 @@
 	> Created Time: Wed 13 Feb 2019 02:06:34 PM CST
  ************************************************************************/
 
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<errno.h>
-#include<unistd.h>
-#include<sys/types.h>
-#include<sys/socket.h>
-//#include<sys/select.h>
-#include<sys/poll.h>
-#include<sys/wait.h>
-#include<arpa/inet.h>
-#include<netinet/in.h>
-#include<time.h>
-#include<signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <poll.h>
+#include <sys/wait.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <time.h>
+#include <signal.h>
 
 #define DEFAULT_TIME_OUT 1800
 #define ERR_PRINT(fmt, ...) \
@@ -248,7 +248,6 @@ int main(int argc, char *argv[])
     int timeout = DEFAULT_TIME_OUT;
     char s_ip[INET_ADDRSTRLEN];
     unsigned short s_port;
-    pid_t child;
 
     int i = 0;
 
@@ -304,173 +303,132 @@ int main(int argc, char *argv[])
 
     if (SIG_ERR == register_signal(SIGCHLD, SA_NOCLDWAIT, SIG_IGN))
     {
-        ERR_PRINT("register sig_child error");
         exit(EXIT_FAILURE);
     }
 
     if (-1 == (sockfd = tcp_server(s_ip, s_port)))
     {
-        ERR_PRINT("create server error");
         exit(EXIT_FAILURE);
     }
 
     if (-1 == tcp_listen(sockfd, 5))
     {
-        ERR_PRINT("listen sockfd error");
         close(sockfd);
         exit(EXIT_FAILURE);
     }
 
-#define INIT_SIZE 10240
+#define INIT_SIZE 1024
     struct pollfd event_set[INIT_SIZE];
     event_set[0].fd = sockfd;
     event_set[0].events = POLLRDNORM;
 
-    for (int i = 1; i < INIT_SIZE; i++)
-    {
+    for (int i = 1; i < INIT_SIZE; i++) {
         event_set[i].fd = -1;
     }
-    int ready_number;
 
     while (1)
     {
-        ready_number = poll(event_set, INIT_SIZE, -1);
+        static int cli_cnt = 0;
+        int ready_number = poll(event_set, INIT_SIZE, -1);
+        ERR_PRINT("Get %d events", ready_number);
         if (ready_number < 0) {
-            if (errno == EINTR) {
-                continue;
-            } else {
-                ERR_PRINT("poll error: %s", strerr(errno));
-            }
+                ERR_PRINT("poll error: %s", strerror(errno));
         } else if (ready_number == 0) {
             ERR_PRINT("timeout");
-            continue;
         } else {
-        }
-        memset(&client, 0x0, sizeof(client));
-        if (-1 == (connfd = tcp_accept(sockfd, (struct sockaddr *)&client, &addrlen)))
-        {
-            ERR_PRINT("socket accept error");
-        }
-        else
-        {
-            char cli_ip[INET_ADDRSTRLEN];
-            unsigned short cli_port;
-            memset(cli_ip, 0x0, sizeof(cli_ip));
-            ERR_PRINT("client info: %s:%u",
-                     inet_ntop(AF_INET, &client.sin_addr, cli_ip, sizeof(cli_ip)),
-                     ntohs(client.sin_port));
-
-            child = fork();
-            switch (child)
-            {
-                case -1:
-                ERR_PRINT("fork error: %s", strerror(errno));
-                break;
-
-                case 0:
-                close(sockfd);
-                char buff[1024];
-                char msg_buff[1024];
-                char filename[1024];
-                int recv_len;
-                fd_set nreads;
-                struct timeval ageing_time;
-                int maxnfd = connfd + 1;
-                int sret = 0;
-
-                snprintf(filename, sizeof(filename), "child.%d", getpid());
-
-                while (1)
+            if (event_set[0].revents & POLLRDNORM) {
+                ++cli_cnt;
+                memset(&client, 0x0, sizeof(client));
+                if (-1 == (connfd = tcp_accept(sockfd, (struct sockaddr *)&client, &addrlen)))
                 {
-                    FD_ZERO(&nreads);
-                    FD_SET(connfd, &nreads);
-                    ageing_time.tv_sec = timeout;
-                    ageing_time.tv_usec = 0;
-
-                    sret = select(maxnfd, &nreads, NULL, NULL, &ageing_time);
-                    switch (sret)
+                    ERR_PRINT("socket accept error");
+                }
+                else 
+                {
+                    char cli_ip[INET_ADDRSTRLEN];
+                    memset(cli_ip, 0x0, sizeof(cli_ip));
+                    ERR_PRINT("client info: %s:%u",
+                             inet_ntop(AF_INET, &client.sin_addr, cli_ip, sizeof(cli_ip)),
+                             ntohs(client.sin_port));
+                    int i = 0;
+                    for (; i < INIT_SIZE; i++)
                     {
-                        case -1:
-                        if (EINTR == errno)
-                            continue;
-                        else
-                        {
-                            ERR_PRINT("select error: %s", strerror(errno));
-                            goto OUT_LOOP;
+                        if (event_set[i].fd < 0) {
+                            event_set[i].fd = connfd;
+                            event_set[i].events = POLLRDNORM;
+                            break;
                         }
-                        break;
-
-                        case 0:
-                        ERR_PRINT("in time %d seconds, no data arrives, shutdown this connection", ageing_time.tv_sec);
-                        #if 0
-                        if (-1 == shutdown(connfd, SHUT_RDWR))
-                        {
-                            ERR_PRINT("failed to shutdown connection, exit ...");
-                            goto OUT_LOOP;
-                        }
-                        #else
+                    }
+                    if (i == INIT_SIZE) {
+                        ERR_PRINT("fd exausted");
                         close(connfd);
-                        exit(EXIT_FAILURE);
-                        #endif
-                        break;
-
-                        default:
-                        if (FD_ISSET(connfd, &nreads))
+                    }
+                }
+                if (!--ready_number) {
+                    continue;
+                }
+            }
+            for (int i = 1; i < INIT_SIZE; i++)
+            {
+                if (event_set[i].fd < 0)
+                {
+                    continue;
+                }
+                if (event_set[i].revents & (POLLRDNORM | POLLERR)) 
+                {
+                    char buff[1024];
+                    char msg_buff[1024];
+                    char filename[1024];
+                    int recv_len;
+                    int buff_tlen = sizeof(buff);
+                    memset(buff, 0x0, sizeof(buff));
+                    recv_len = tcp_recv(event_set[i].fd, buff, &buff_tlen);
+                    if (recv_len == 0)
+                    {
+                        ERR_PRINT("buff[0] = %c", buff[0]);
+                        switch (buff[0])
                         {
-                            //ERR_PRINT("child[%d]::after time %d sec %d usec",
-                            //         getpid(), ageing_time.tv_sec, ageing_time.tv_usec);
-                            int buff_tlen = sizeof(buff);
+                            case '1':
+                            printf("#####\n");  
+                            printf("buff: %s\n", buff);
+                            printf("#####\n");  
+                            snprintf(filename, sizeof(filename), "record.%d", getpid());
+                            snprintf(msg_buff, sizeof(msg_buff), "NO.%d Client, msg len: %d, recv msg: %s\n",
+                                  i, (int)strlen(buff), buff);
+                            children_write_msg(filename, msg_buff, strlen(msg_buff));
+                            break;
+
+                            case '0':
+                            ERR_PRINT("### receive a tcp heartbeat ###");
                             memset(buff, 0x0, sizeof(buff));
-                            recv_len = tcp_recv(connfd, buff, &buff_tlen);
-                            if (recv_len == 0)
+                            buff[0] = '$';
+                            int send_len = tcp_send(event_set[i].fd, buff, 1);
+                            if (send_len < 0)
                             {
-                                ERR_PRINT("buff[0] = %c", buff[0]);
-                                switch (buff[0])
-                                {
-                                    case '1':
-                                    printf("buff: %s", buff);
-                                    snprintf(msg_buff, sizeof(msg_buff), "mypid: %d, msg len: %d, recv msg: %s\n",
-                                          getpid(), strlen(buff), buff);
-                                    children_write_msg(filename, msg_buff, strlen(msg_buff));
-                                    break;
-
-                                    case '0':
-                                    ERR_PRINT("### receive a tcp heartbeat ###");
-                                    memset(buff, 0x0, sizeof(buff));
-                                    buff[0] = '$';
-                                    int send_len = tcp_send(connfd, buff, 1);
-                                    if (send_len < 0)
-                                    {
-                                        ERR_PRINT("send heartbeat ack error: %s", strerror(errno));
-                                    }
-                                    break;
-
-                                    default:
-                                    ERR_PRINT("unknown message: %s", buff);
-                                    break;
-                                }
+                                ERR_PRINT("send heartbeat ack error: %s", strerror(errno));
                             }
-                            else if (recv_len < 0)
-                            {
-                                ERR_PRINT("some errors happens or client exits ...");
-                                goto OUT_LOOP;
-                            }
+                            break;
+
+                            default:
+                            printf("#####\n");  
+                            ERR_PRINT("unknown message: %s\n", buff);
+                            printf("#####\n");  
+                            break;
                         }
+                    }
+                    else if (recv_len < 0 || errno == ECONNRESET)
+                    {
+                        ERR_PRINT("some errors happens or client exits ...");
+                        close(event_set[i].fd);
+                        event_set[i].fd = -1;
+                    }
+                    if (!--ready_number) 
+                    {
                         break;
                     }
                 }
-OUT_LOOP:
-                close(connfd);
-                exit(EXIT_FAILURE);
-                break;
-
-                default:
-                close(connfd);
-                printf("father pid: %d, wait again\n", getpid());
-                break;
             }
         }
-        sleep(1);
     }
 
     close(listenfd);
