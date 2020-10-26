@@ -6,51 +6,14 @@
  ************************************************************************/
 
 #include <stdio.h>
+#include <assert.h>
 #include "network_hdr.h"
 
 static int running = 1;
 
 void sig_handler(int signo) {
+    assert(signo != 0);
     running = 0;
-}
-
-int tcp_server_listen(const char* ip, unsigned short port) {
-    int fd = socket(PF_INET, SOCK_STREAM, 0);
-    if (fd < 0) {
-        ERR_PRINT("socket error: %s", strerror(errno));
-        return -1;
-    }
-
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) < 0) {
-        ERR_PRINT("socket set nonblock failed: %s", strerror(errno));
-    }
-
-    struct sockaddr_in serv_addr;
-    bzero(&serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
-    if (ip) {
-        if (inet_pton(AF_INET, ip, &serv_addr.sin_addr.s_addr) <= 0) {
-            ERR_PRINT("inet_ntop failed: %s", strerror(errno));
-            return -1;
-        }
-    } else {
-        serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    }
-
-    if (bind(fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        ERR_PRINT("bind failed: %s", strerror(errno));
-        return -1;
-    }
-
-    int listenfd;
-    if ((listenfd = listen(fd, 5)) < 0) {
-        ERR_PRINT("listen failed: %s", strerror(errno));
-        return -1;
-    }
-
-    return listenfd;
 }
 
 struct Buffer {
@@ -74,11 +37,6 @@ int main(void) {
 #else
     unsigned short port = 11111;
 #endif
-    int listenfd = 0;
-    if ((listenfd = tcp_server_listen(NULL, port)) < 0) {
-        ERR_PRINT("server start failed\n");
-        exit(EXIT_FAILURE);
-    }
 
     if (register_signal(SIGINT, 0, sig_handler) == SIG_ERR) {
         ERR_PRINT("signal register failed\n");
@@ -90,8 +48,21 @@ int main(void) {
         exit(EXIT_FAILURE);
     }
 
+    //struct sockaddr_in ex;
+    //printf("size of sockaddr_in: %u\n", sizeof(struct sockaddr_in));
+    //printf("size of sa_family_t: %u\n", sizeof(ex.sin_family));
+    //printf("size of sin_addr: %u\n", sizeof(ex.sin_addr));
+    //printf("size of sin_port: %u\n", sizeof(ex.sin_port));
+
+    int listenfd = 0;
+    if ((listenfd = tcp_server_listen(NULL, port)) < 0) {
+        ERR_PRINT("server start failed\n");
+        exit(EXIT_FAILURE);
+    }
+
     int maxfd = listenfd;
-    fd_set readfd;
+    ERR_PRINT("listenfd = %d\n", listenfd);
+    fd_set readfd, exfd;
     FD_ZERO(&readfd);
     FD_SET(listenfd, &readfd);
     fd_set dupli = readfd;
@@ -100,21 +71,25 @@ int main(void) {
     for (int i = 0; i < 1024; i++) cli[i] = -1;
 
     while (running) {
-        struct timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = 50 * 1000;
+        //struct timeval tv;
+        //tv.tv_sec = 0;
+        //tv.tv_usec = 800 * 1000;
         readfd = dupli;
-        int ret = select(maxfd + 1, &readfd, NULL, NULL, &tv);
+        FD_ZERO(&exfd);
+        ERR_PRINT("wait I/O\n");
+        //int ret = select(maxfd + 1, &readfd, NULL, NULL, &tv);
+        int ret = select(maxfd + 1, &readfd, NULL, &exfd, NULL);
         if (ret < 0) {
             ERR_PRINT("select error: %s", strerror(errno));
-            continue;
         }
 
         if (ret == 0) {
+            ERR_PRINT("time out");
             continue;
         }
 
         if (FD_ISSET(listenfd, &readfd)) {
+            ERR_PRINT("get accept event, try to accept\n");
             struct sockaddr_in cli_addr;
             socklen_t clen; 
             int sockfd = accept(listenfd, (struct sockaddr*)&cli_addr, &clen);
@@ -125,21 +100,28 @@ int main(void) {
                 unsigned short port = ntohs(cli_addr.sin_port);
                 inet_ntop(AF_INET, &cli_addr.sin_addr.s_addr, ip, sizeof(cli_addr));
                 printf("client: %s:%d connecting...\n", ip, port);
-                if (maxfd < sockfd) maxfd = sockfd;
                 int id = 0;
                 for (; id < 1024 && cli[id] >= 0; id++) {}
                 if (id == 1024) {
                     ERR_PRINT("client exceed limit\n");
                     close(sockfd);
                 } else {
+                    //skbuff初始化
+                    ERR_PRINT("sbuff init\n");
                     memset(&sbuff[id], 0x0, sizeof(struct Buffer));
+                    make_noblocking(cli[id]);
                     cli[id] = sockfd;
                     strcpy(sbuff[id].ip, ip);
                     sbuff[id].port = port;
+                    FD_SET(sockfd, &dupli);
+                    if (sockfd > maxfd) {
+                        maxfd = sockfd;
+                    }
                 }
             }
         }
 
+        ERR_PRINT("check client\n");
         char tbuff[4096];
         for (int i = 0; i < 1024; i++) {
             if (cli[i] < 0) continue;
@@ -153,15 +135,44 @@ int main(void) {
                         ERR_PRINT("client %s:%d in exception, close socket...", sbuff[i].ip, sbuff[i].port);
                         close(cli[i]);
                         cli[i] = -1;
+                        FD_CLR(cli[i], &dupli);
                     }
-                }
-                if (readn == 0) {
+                } else if (readn == 0) {
                     printf("client %s:%d exit, close socket...", sbuff[i].ip, sbuff[i].port);
                     close(cli[i]);
                     cli[i] = -1;
+                    FD_CLR(cli[i], &dupli);
+                } else {
+                    printf("read from [%s:%d]: %s\n", sbuff[i].ip, sbuff[i].port, tbuff);
+                    if (readn < 4096 - sbuff[i].rindex - 1) {
+                        strncpy(sbuff[i].buff + sbuff[i].rindex, tbuff, strlen(tbuff));
+                        sbuff[i].rindex += readn;
+                    } else {
+                        strncpy(sbuff[i].buff + sbuff[i].rindex, tbuff, 4096 - sbuff[i].rindex - 1);
+                        sbuff[i].buff[4095] = 0;
+                        sbuff[i].rindex = 4095;
+                    }
+                    printf("buff status: %s\n", sbuff[i].buff);
+                    printf("read index: %d, write index: %d\n", sbuff[i].rindex, sbuff[i].windex);
+                    ERR_PRINT("try to echo back(try 3 times):\n");
+                    int written = sendn(cli[i], sbuff[i].buff + sbuff[i].windex, sbuff[i].rindex - sbuff[i].windex);
+                    if (written > 0) {
+                        ERR_PRINT("%d bytes data send\n", written);
+                        sbuff[i].windex += written;
+                        if (sbuff[i].windex == sbuff[i].rindex) {
+                            sbuff[i].windex = sbuff[i].rindex = 0;
+                        } else {
+                            ERR_PRINT("send to [%s:%d] error\n", sbuff[i].ip, sbuff[i].port);
+                            close(cli[i]);
+                            cli[i] = -1;
+                            FD_CLR(cli[i], &dupli);
+                        }
+                    }
                 }
             }
         }
+        readfd = dupli;
+        ERR_PRINT("check client end\n");
     }
 
     return 0;
