@@ -63,21 +63,21 @@ int main(void) {
     int maxfd = listenfd;
     ERR_PRINT("listenfd = %d\n", listenfd);
     fd_set readfd, exfd;
-    FD_ZERO(&readfd);
-    FD_SET(listenfd, &readfd);
-    fd_set dupli = readfd;
     int cli[1024];
     struct Buffer sbuff[1024];
     for (int i = 0; i < 1024; i++) cli[i] = -1;
 
     while (running) {
-        //struct timeval tv;
-        //tv.tv_sec = 0;
-        //tv.tv_usec = 800 * 1000;
-        readfd = dupli;
+        FD_ZERO(&readfd);
+        FD_SET(listenfd, &readfd);
         FD_ZERO(&exfd);
+        for (int i = 0; i < 1024; i++) {
+            if (cli[i] > 0) {
+                FD_SET(cli[i], &readfd);
+            }
+        }
+
         ERR_PRINT("wait I/O\n");
-        //int ret = select(maxfd + 1, &readfd, NULL, NULL, &tv);
         int ret = select(maxfd + 1, &readfd, NULL, &exfd, NULL);
         if (ret < 0) {
             ERR_PRINT("select error: %s", strerror(errno));
@@ -113,7 +113,6 @@ int main(void) {
                     cli[id] = sockfd;
                     strcpy(sbuff[id].ip, ip);
                     sbuff[id].port = port;
-                    FD_SET(sockfd, &dupli);
                     if (sockfd > maxfd) {
                         maxfd = sockfd;
                     }
@@ -135,13 +134,11 @@ int main(void) {
                         ERR_PRINT("client %s:%d in exception, close socket...", sbuff[i].ip, sbuff[i].port);
                         close(cli[i]);
                         cli[i] = -1;
-                        FD_CLR(cli[i], &dupli);
                     }
                 } else if (readn == 0) {
                     printf("client %s:%d exit, close socket...", sbuff[i].ip, sbuff[i].port);
                     close(cli[i]);
                     cli[i] = -1;
-                    FD_CLR(cli[i], &dupli);
                 } else {
                     printf("read from [%s:%d]: %s\n", sbuff[i].ip, sbuff[i].port, tbuff);
                     if (readn < 4096 - sbuff[i].rindex - 1) {
@@ -165,13 +162,11 @@ int main(void) {
                             ERR_PRINT("send to [%s:%d] error\n", sbuff[i].ip, sbuff[i].port);
                             close(cli[i]);
                             cli[i] = -1;
-                            FD_CLR(cli[i], &dupli);
                         }
                     }
                 }
             }
         }
-        readfd = dupli;
         ERR_PRINT("check client end\n");
     }
 
