@@ -106,7 +106,7 @@ int tcp_server_listen(const char* ip, unsigned short port) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     if (ip) {
-        if (inet_pton(AF_INET, ip, &serv_addr.sin_addr.s_addr) <= 0) {
+        if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0) {
             ERR_PRINT("inet_pton failed: %s", strerror(errno));
             return -1;
         }
@@ -140,7 +140,7 @@ int tcp_client_connect(const char* ip, unsigned short port) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     if (ip) {
-        if (inet_pton(AF_INET, ip, &serv_addr.sin_addr.s_addr) <= 0) {
+        if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0) {
             ERR_PRINT("inet_ntop failed: %s", strerror(errno));
             return -1;
         }
