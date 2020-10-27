@@ -68,6 +68,7 @@ int main(void) {
     for (int i = 0; i < 1024; i++) cli[i] = -1;
 
     while (running) {
+        hexdump(&readfd, sizeof(readfd));
         FD_ZERO(&readfd);
         FD_SET(listenfd, &readfd);
         FD_ZERO(&exfd);
@@ -76,12 +77,14 @@ int main(void) {
                 FD_SET(cli[i], &readfd);
             }
         }
+        hexdump(&readfd, sizeof(readfd));
 
         ERR_PRINT("wait I/O\n");
         int ret = select(maxfd + 1, &readfd, NULL, &exfd, NULL);
         if (ret < 0) {
             ERR_PRINT("select error: %s", strerror(errno));
         }
+        hexdump(&readfd, sizeof(readfd));
 
         if (ret == 0) {
             ERR_PRINT("time out");

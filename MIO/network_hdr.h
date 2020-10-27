@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
@@ -47,6 +48,31 @@ sigfunc_t register_signal(int signo, int flags, sigfunc_t sig_handler) {
     }
 
     return oact.sa_handler;
+}
+
+void hexdump(const void* buf, size_t len) {
+    printf("\nHexDump:\n");
+    const uint8_t *data = (const uint8_t*)buf;
+    for (size_t i = 0; i < len; i += 16) {
+        printf("%08lx | ", i);
+        for (int j = 0; j < 16; j++) {
+            if (i + j < len) {
+                printf("%.2x ", data[i + j]);
+            } else {
+                printf("   ");
+            }
+        }
+        printf(" | ");
+        for (int j = 0; j < 16; j++) {
+            if (i + j < len) {
+                printf("%c", isspace(data[i + j])? '.': data[i + j]);
+            } else {
+                printf(" ");
+            }
+        }
+        printf("\n");
+    }
+    printf("end\n\n");
 }
 
 int make_noblocking(int fd) {
