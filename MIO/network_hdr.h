@@ -18,6 +18,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/epoll.h>
 #include <sys/select.h>
 #include <poll.h>
 #include <fcntl.h>
