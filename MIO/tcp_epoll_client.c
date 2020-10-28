@@ -58,7 +58,14 @@ int main() {
             ERR_PRINT("timeout\n");
         } else {
             for (int i = 0; i < readyn; i++) {
-                if (events[i].data.fd == fileno(stdin)) {
+                if ((events[i].events & EPOLLERR) ||
+                    (events[i].events & EPOLLHUP) ||
+                    (!(events[i].events & EPOLLIN))) {
+                    ERR_PRINT("some errors happens on fd\n");
+                    close(events[i].data.fd);
+                    close(efd);
+                    exit(EXIT_FAILURE);
+                } else if (events[i].data.fd == fileno(stdin)) {
                     char buff[1024];
                     if (fgets(buff, sizeof(buff), stdin)) {
                         int len = strlen(buff);
