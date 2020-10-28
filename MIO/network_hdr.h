@@ -25,12 +25,27 @@
 #include <sys/wait.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 #include <time.h>
 #include <signal.h>
 
 #define DEFAULT_TIME_OUT 1800
 #define ERR_PRINT(fmt, args...) \
-        printf("[%-6.5s:%6.5d]" fmt "\n", __func__, __LINE__, ##args)
+do \
+{ \
+    struct timeval etv; \
+    struct tm etm; \
+    gettimeofday(&etv, NULL); \
+    localtime_r(&etv.tv_sec, &etm); \
+    char ms[7]; \
+    snprintf(ms, sizeof(ms), "%lu", etv.tv_usec); \
+    for (int i = strlen(ms); i < 6; i++) ms[i] = '0'; \
+    ms[6] = 0; \
+    printf("[%04d-%02d-%02d %02d:%02d:%02d.%s][%-6.5s:%6.5d]" fmt "\n", \
+           etm.tm_year + 1900, etm.tm_mon + 1, etm.tm_mday, \
+           etm.tm_hour, etm.tm_min, etm.tm_sec, ms, \
+           __func__, __LINE__, ##args); \
+} while (0)
 
 typedef void (*sigfunc_t)(int);
 
