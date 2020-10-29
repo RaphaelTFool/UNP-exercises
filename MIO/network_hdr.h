@@ -107,6 +107,46 @@ int make_noblocking(int fd) {
     return fd;
 }
 
+int tcp_server_listen1(const char* ip, unsigned short port) {
+    int fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        ERR_PRINT("socket created error: %s", strerror(errno));
+        return -1;
+    }
+
+    int opt = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int)) < 0) {
+        ERR_PRINT("set socket option failed: %s", strerror(errno));
+        return -1;
+    }
+
+    struct sockaddr_in serv_addr;
+    bzero(&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+    if (ip) {
+        if (inet_pton(AF_INET, ip, &serv_addr.sin_addr) <= 0) {
+            ERR_PRINT("inet_pton failed: %s", strerror(errno));
+            return -1;
+        }
+    } else {
+        serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    }
+
+    if (bind(fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        ERR_PRINT("bind failed: %s", strerror(errno));
+        return -1;
+    }
+
+    //listen函数并不返回套接字
+    if (listen(fd, 512) < 0) {
+        ERR_PRINT("listen failed: %s", strerror(errno));
+        return -1;
+    }
+
+    return fd;
+}
+
 int tcp_server_listen(const char* ip, unsigned short port) {
     int fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
