@@ -90,7 +90,7 @@ int main() {
                     }
                 } else {
                     int connfd = events[i].data.fd;
-                    printf("epoll get event from fd %d", connfd);
+                    printf("epoll get event from fd %d, data:", connfd);
                     char c;
                     int rcn = recv(connfd, &c, 1, 0);
                     if (rcn < 0) {
@@ -107,7 +107,8 @@ int main() {
                             ERR_PRINT("epoll_ctl delete failed: %s", strerror(errno));
                         }
                     } else {
-                        printf("%c\n", c);
+                        if (c != '\n') printf("%c\n", c);
+                        else printf("return\n");
                         int sdn = send(connfd, &c, 1, 0);
                         if (sdn < 0) {
                             if (errno == EINTR || errno == EAGAIN) continue;
