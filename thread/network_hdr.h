@@ -30,8 +30,6 @@
 #include <signal.h>
 #include <pthread.h>
 
-#define DEFAULT_TIME_OUT 1800
-
 void print_time(void) {
 #ifdef _DEBUG_TIME
     struct timeval etv;
@@ -53,6 +51,12 @@ do \
 { \
     print_time(); \
     printf("[%-6.5s:%6.5d]" fmt "\n", __func__, __LINE__, ##args); \
+} while (0)
+
+#define handle_errno(err) \
+do { \
+    ERR_PRINT("\"%s\" error: %s", __func__, strerror(err)); \
+    exit(EXIT_FAILURE); \
 } while (0)
 
 typedef void (*sigfunc_t)(int);
@@ -252,6 +256,43 @@ ssize_t sendn(int fd, const void* data, size_t n) {
         }
     }
     return n - nleft;
+}
+
+/*===================================================*/
+/*===================================================*/
+/*===================================================*/
+
+/* Pthread Functions */
+void Pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                    void *(*start_routine) (void *), void *arg) {
+    int s = pthread_create(thread, attr, start_routine, arg);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_join(pthread_t thread_id, void **res) {
+    int s = pthread_join(thread_id, res);
+    if (s != 0)
+        handle_errno(s);
+}
+
+/* Pthread Attribute */
+void Pthread_attr_init(pthread_attr_t *attr) {
+    int s = pthread_attr_init(attr);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_attr_destroy(pthread_attr_t *attr) {
+    int s = pthread_attr_destroy(attr);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize) {
+    int s = pthread_attr_setstacksize(attr, stacksize);
+    if (s != 0)
+        handle_errno(s);
 }
 
 #endif
