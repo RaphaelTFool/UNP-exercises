@@ -46,6 +46,7 @@ void echo_loop(int fd) {
 void* thread_run(void *arg) {
     pthread_detach(pthread_self());
     int fd = *(int *)arg;
+    //int fd = (int)arg;
     echo_loop(fd);
     return NULL;
 }
@@ -76,6 +77,7 @@ int main() {
             exit(EXIT_FAILURE);
         } else {
             Pthread_create(&thread_id, &attr, thread_run, &connfd);
+            //Pthread_create(&thread_id, &attr, thread_run, (void*)connfd);
             inet_ntop(AF_INET, &client.sin_addr, ip, sizeof(ip));
             port = ntohs(client.sin_port);
             printf("client [%s:%u] dispatch for thread %ld\n",
