@@ -276,6 +276,18 @@ void Pthread_join(pthread_t thread_id, void **res) {
         handle_errno(s);
 }
 
+void Pthread_cancel(pthread_t thread_id) {
+    int s = pthread_cancel(thread_id);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_detach(pthread_t thread_id) {
+    int s = pthread_detach(thread_id);
+    if (s != 0)
+        handle_errno(s);
+}
+
 /* Pthread Attribute */
 void Pthread_attr_init(pthread_attr_t *attr) {
     int s = pthread_attr_init(attr);
@@ -291,6 +303,12 @@ void Pthread_attr_destroy(pthread_attr_t *attr) {
 
 void Pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize) {
     int s = pthread_attr_setstacksize(attr, stacksize);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate) {
+    int s = pthread_attr_setdetachstate(attr, detachstate);
     if (s != 0)
         handle_errno(s);
 }
