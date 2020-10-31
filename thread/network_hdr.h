@@ -30,6 +30,9 @@
 #include <signal.h>
 #include <pthread.h>
 
+pthread_mutex_t debug_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* 时间打印函数 */
 void print_time(void) {
 #ifdef _DEBUG_TIME
     struct timeval etv;
@@ -49,8 +52,10 @@ void print_time(void) {
 #define ERR_PRINT(fmt, args...) \
 do \
 { \
+    pthread_mutex_lock(&debug_mutex); \
     print_time(); \
     printf("[%-6.5s:%6.5d]" fmt "\n", __func__, __LINE__, ##args); \
+    pthread_mutex_unlock(&debug_mutex); \
 } while (0)
 
 #define handle_errno(err) \
@@ -58,6 +63,36 @@ do { \
     ERR_PRINT("\"%s\" error: %s", __func__, strerror(err)); \
     exit(EXIT_FAILURE); \
 } while (0)
+
+/*===================================================*/
+/*===================================================*/
+/*===================================================*/
+
+/* 内存分配函数封装 */
+void* Malloc(size_t nbytes) {
+    void* ret = malloc(nbytes);
+    if (!ret)
+        handle_errno(errno);
+    return ret;
+}
+
+void* Calloc(size_t nmemb, size_t nbytes) {
+    void* ret = calloc(nmemb, nbytes);
+    if (!ret)
+        handle_errno(errno);
+    return ret;
+}
+
+void *Realloc(void* ptr, size_t nbytes) {
+    void* ret = realloc(ptr, nbytes);
+    if (!ret)
+        handle_errno(errno);
+    return ret;
+}
+
+/*===================================================*/
+/*===================================================*/
+/*===================================================*/
 
 typedef void (*sigfunc_t)(int);
 
@@ -309,6 +344,60 @@ void Pthread_attr_setstacksize(pthread_attr_t *attr, size_t stacksize) {
 
 void Pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate) {
     int s = pthread_attr_setdetachstate(attr, detachstate);
+    if (s != 0)
+        handle_errno(s);
+}
+
+/*===================================================*/
+/*===================================================*/
+/*===================================================*/
+
+/* pthread mutex */
+void Pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* attr) {
+    int s = pthread_mutex_init(mutex, attr);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_mutex_destroy(pthread_mutex_t* mutex) {
+    int s = pthread_mutex_destroy(mutex);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_mutex_lock(pthread_mutex_t* mutex) {
+    int s = pthread_mutex_lock(mutex);
+    if(s != 0)
+        handle_errno(s);
+}
+
+void Pthread_mutex_unlock(pthread_mutex_t* mutex) {
+    int s = pthread_mutex_unlock(mutex);
+    if (s != 0)
+        handle_errno(s);
+}
+
+/* pthread cond */
+void Pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr) {
+    int s = pthread_cond_init(cond, attr);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_cond_destroy(pthread_cond_t* cond) {
+    int s = pthread_cond_destroy(cond);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
+    int s = pthread_cond_wait(cond, mutex);
+    if (s != 0)
+        handle_errno(s);
+}
+
+void Pthread_cond_signal(pthread_cond_t* cond) {
+    int s = pthread_cond_signal(cond);
     if (s != 0)
         handle_errno(s);
 }
