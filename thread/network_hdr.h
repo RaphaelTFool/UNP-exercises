@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <sys/select.h>
+#include <sys/stat.h>
 #include <poll.h>
 #include <fcntl.h>
 #include <sys/wait.h>
@@ -47,6 +48,14 @@ void print_time(void) {
            etm.tm_year + 1900, etm.tm_mon + 1, etm.tm_mday,
            etm.tm_hour, etm.tm_min, etm.tm_sec, ms);
 #endif
+}
+
+bool start_daemon() {
+    int fd;
+    switch(fork()) {
+    case -1:
+        ERR_PRINT("fork() failed\n");
+    }
 }
 
 #define ERR_PRINT(fmt, args...) \
