@@ -50,14 +50,6 @@ void print_time(void) {
 #endif
 }
 
-bool start_daemon() {
-    int fd;
-    switch(fork()) {
-    case -1:
-        ERR_PRINT("fork() failed\n");
-    }
-}
-
 #define ERR_PRINT(fmt, args...) \
 do \
 { \
@@ -76,6 +68,47 @@ do { \
 /*===================================================*/
 /*===================================================*/
 /*===================================================*/
+static pid_t _pid_;
+void daemon_child_handler(int signo) {
+    kill(_pid_, SIGINT);
+    exit(0);
+}
+int start_daemon() {
+    do {
+        _pid_ = fork();
+        switch(_pid_) {
+            case -1: {
+                ERR_PRINT("fork() failed\n");
+                sleep(1);
+                continue;
+            } break;
+                 
+            case 0: {
+                return -1;
+            } break;
+
+            default: {
+                ERR_PRINT("parent watch child\n");
+                if (SIG_ERR == signal(SIGINT, daemon_child_handler)) {
+                    ERR_PRINT("signal register failed\n");
+                    exit(1);
+                }
+
+                do {
+                    int status = 0;
+                    if (waitpid(_pid_, &status, 0) >= 0) {
+                        ERR_PRINT("child went wrong\n");
+                        sleep(1);
+                        break;
+                    }
+                } while (1);
+            } break;
+        }
+    } while (1);
+
+    return 0;
+}
+
 
 /* 内存分配函数封装 */
 void* Malloc(size_t nbytes) {
