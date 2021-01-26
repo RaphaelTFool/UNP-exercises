@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include "network_hdr.h"
 
+#define QSIZE 2
+
 int running = 1;
 
 void sig_handler(int signo) {
@@ -23,11 +25,11 @@ void echo_loop(int fd) {
             if (errno == EINTR || errno == EAGAIN) continue;
             ERR_PRINT("recv failed: %s", strerror(errno));
             close(fd);
-            pthread_exit(0);
+            break;
         } else if (rcn == 0) {
             ERR_PRINT("peer close connection");
             close(fd);
-            pthread_exit(0);
+            break;
         } else {
             ERR_PRINT("thread %ld get msg: %s", pthread_self(), buff);
             int sdn = send(fd, buff, strlen(buff), 0);
@@ -35,7 +37,7 @@ void echo_loop(int fd) {
                 if (errno == EINTR || errno == EAGAIN) continue;
                 ERR_PRINT("send failed: %s", strerror(errno));
                 close(fd);
-                pthread_exit(0);
+                break;
             }
         }
     }
@@ -103,16 +105,16 @@ void* thread_run(void *arg) {
 int main(int argc, char **argv) {
     int listen_fd = tcp_server_listen1("127.0.0.1", 22333);
     block_queue blockQueue;
-    block_queue_init(&blockQueue, 10);
+    block_queue_init(&blockQueue, QSIZE);
 
     register_signal(SIGINT, 0, sig_handler);
 
-    pthread_t *thread_array = calloc(10, sizeof(pthread_t));
+    pthread_t *thread_array = calloc(QSIZE, sizeof(pthread_t));
     if (!thread_array) {
         handle_errno(errno);
     }
     int i;
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < QSIZE; i++) {
         Pthread_create(thread_array + i, NULL, &thread_run, (void *)&blockQueue);
     }
 
