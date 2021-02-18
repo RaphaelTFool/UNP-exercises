@@ -319,10 +319,12 @@ int main(int argc, char *argv[]) {
                         }
                     } else if (recv_len < 0 || errno != EAGAIN) {
                         ERR_PRINT("some errors happens or client exits ...");
-#if 0
-                        //似乎自动被删除了
+#if 1
+                        //需要手动删除对应的事件
                         if (epoll_ctl(efd, EPOLL_CTL_DEL, clifd, &events[i]) < 0) {
                             ERR_PRINT("epoll_ctl delete event failed: %s\n", strerror(errno));
+                        } else {
+                            ERR_PRINT("delete fd: %d from epoll\n", events[i].data.fd);
                         }
 #endif
                         close(clifd);

@@ -16,13 +16,19 @@ void sig_handler(int signo) {
     running = 0;
 }
 
-int main() {
+int main(int argc, char **argv) {
+    unsigned short port = 0;
+    if (argc >= 2) {
+        port = atoi(argv[1]);
+    }
+    if (port == 0) {
+        port = 11111;
+    }
     if (register_signal(SIGINT, 0, sig_handler) < 0) {
         ERR_PRINT("signal registered failed\n");
         exit(EXIT_FAILURE);
     }
 
-    unsigned short port = 11111;
     int connfd = tcp_client_connect("127.0.0.1", port);
     if (connfd < 0) {
         ERR_PRINT("connect server failed\n");
