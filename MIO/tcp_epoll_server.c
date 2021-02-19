@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
         int ready_number = epoll_wait(efd, events, MAX_EVENTS, -1);
         ERR_PRINT("epoll_wait wakeup, Get %d events", ready_number);
         if (ready_number < 0) {
-                ERR_PRINT("epoll error: %s", strerror(errno));
+            ERR_PRINT("epoll error: %s", strerror(errno));
         } else if (ready_number == 0) {
             ERR_PRINT("timeout");
         } else {
@@ -283,11 +283,9 @@ int main(int argc, char *argv[]) {
                     int buff_tlen = sizeof(buff);
                     memset(buff, 0x0, sizeof(buff));
                     recv_len = tcp_recv(clifd, buff, &buff_tlen);
-                    if (recv_len == 0)
-                    {
+                    if (recv_len == 0) {
                         ERR_PRINT("buff[0] = %c", buff[0]);
-                        switch (buff[0])
-                        {
+                        switch (buff[0]) {
                             case '1':
                             printf("#####\n");  
                             printf("buff: %s\n", buff);
@@ -304,8 +302,7 @@ int main(int argc, char *argv[]) {
                             memset(buff, 0x0, sizeof(buff));
                             buff[0] = '$';
                             int send_len = tcp_send(clifd, buff, 1);
-                            if (send_len < 0)
-                            {
+                            if (send_len < 0) {
                                 ERR_PRINT("send heartbeat ack error: %s", strerror(errno));
                             }
                             break;
@@ -319,14 +316,12 @@ int main(int argc, char *argv[]) {
                         }
                     } else if (recv_len < 0 || errno != EAGAIN) {
                         ERR_PRINT("some errors happens or client exits ...");
-#if 1
                         //需要手动删除对应的事件
                         if (epoll_ctl(efd, EPOLL_CTL_DEL, clifd, &events[i]) < 0) {
                             ERR_PRINT("epoll_ctl delete event failed: %s\n", strerror(errno));
                         } else {
                             ERR_PRINT("delete fd: %d from epoll\n", events[i].data.fd);
                         }
-#endif
                         close(clifd);
                     }
                 }
